@@ -10,6 +10,8 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+typedef void (*sighandler_t)(int); //TODO: make sure sheze hamakom sheze zarich lihiot
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -116,6 +118,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+sighandler_t    signal(int signum, sighandler_t handler);
+int             sigsend(int pid, int signum);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

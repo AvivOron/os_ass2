@@ -89,3 +89,34 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int
+sys_signal(void)
+{
+  int signum, handler;
+
+  if(argint(0, &signum) < 0)
+    return -1;
+  
+  if(argint(1, &handler) < 0)
+    return -1;
+  
+  return (int)signal(signum, (sighandler_t)handler);
+}
+
+int
+sys_sigsend(void)
+{
+  int pid, signum;
+
+  if(argint(0, &pid) < 0)
+    return -1;
+  
+  if(argint(1, &signum) < 0)
+    return -1;
+  
+  sigsend(pid, signum);
+  return 0;
+}
+
+

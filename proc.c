@@ -26,9 +26,8 @@ pinit(void)
   initlock(&ptable.lock, "ptable");
 }
 
-int defHandler(int signal, int pid){
-    cprintf("A signal %d was accepted by process %d\n", signal, pid); //TODO: understand why 'proc' makes sense
-    return 0;
+void defHandler(int signal){
+    cprintf("A signal %d was accepted by process %d\n", signal, proc->pid); //TODO: understand why 'proc' makes sense
 }
 
 //PAGEBREAK: 32
@@ -197,7 +196,7 @@ exit(void)
 {
   struct proc *p;
   int fd;
-
+  
   if(proc == initproc)
     panic("init exiting");
 
@@ -227,9 +226,14 @@ exit(void)
         wakeup1(initproc);
     }
   }
+  
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
+  
+      //proc->handlers[1](1);
+
+  
   sched();
   panic("zombie exit");
 }
@@ -491,4 +495,41 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+sighandler_t signal(int signum, sighandler_t handler)
+{
+    sighandler_t oldHandler = (sighandler_t)proc->handlers[signum];
+    proc->handlers[signum] = (void*)handler;
+    return oldHandler;
+}
+
+/*void printIntBinary(int n)
+{
+    while (n) {
+        if (n & 1){
+            cprintf("1");
+        }
+        else{
+            cprintf("0");
+            
+        }
+
+        n >>= 1;
+    }
+    cprintf("\n");   
+}*/
+
+int sigsend(int pid, int signum)
+{
+    struct proc *p;
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+            p->pending |= 1 << signum;
+        }
+    }
+  
+    release(&ptable.lock);
+    return 0;
 }

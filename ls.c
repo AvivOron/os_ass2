@@ -22,6 +22,11 @@ fmtname(char *path)
   return buf;
 }
 
+
+//void myHandler(int signal){
+//    printf(2, "Wow! A signal %d was accepted by process %d\n", signal, getpid()); //TODO: understand why 'proc' makes sense
+//}
+
 void
 ls(char *path)
 {
