@@ -26,6 +26,11 @@ pinit(void)
   initlock(&ptable.lock, "ptable");
 }
 
+int defHandler(int signal, int pid){
+    cprintf("A signal %d was accepted by process %d\n", signal, pid); //TODO: understand why 'proc' makes sense
+    return 0;
+}
+
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize
@@ -72,6 +77,10 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+  
+  for(int i=0;i<NUMSIG;i++){
+   p->handlers[i] = defHandler;   
+  }
 
   return p;
 }
