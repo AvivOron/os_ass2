@@ -18,6 +18,8 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
+extern void  *sigretLabel;
+extern void *sigretLabelEnd;
 
 static void wakeup1(void *chan);
 
@@ -81,6 +83,7 @@ found:
   for(int i=0;i<NUMSIG;i++){
    p->handlers[i] = defHandler;   
    p->pending = 0;
+   p->signalHandling = 0;
   }
 
   return p;
@@ -535,6 +538,46 @@ int sigsend(int pid, int signum)
     return 0;
 }
 
+void userStackPrep(int signal){
+  //1. HAVE TO RETURN TO THE SAME CODE SEGMENT
+  //2. TO WORK WITH NON DEFAULT SIGNAL - GO TO USER SPACE LOCATION
+  //make tf - move to signalhandler - return to original code 
+  //eip - backup also 
+  //how to make the code go to signal handler - move the function address to the eip 
+  //sighandler also needs parameter
+  //how to return? needs to return after sighander to original location
+  //make a syscall that return to old tf 
+  //need to backtf before sighandler
+
+  //order:
+  //copy to stack - code assembly with sigret from backup on stack
+  //copy to stack - oldtf - bkp tf
+  //stack - parameter
+  //stack - return address - stack address that holds the call to sigret
+  
+  uint numBYTS;
+  //calculate num of bytes in syscall sigret
+  numBYTS = (uint)(&sigretLabelEnd - &sigretLabel);
+  //sigret code on stack
+  proc->tf->esp -= numBYTS;
+  memmove((void*)proc->tf->esp, sigretLabel, numBYTS);
+
+  //backup tf on user stack
+  proc->tf->esp -= sizeof(struct trapframe);
+  memmove((void*)proc->tf->esp, proc->tf, sizeof(struct trapframe));
+
+  //parameter for handler
+  proc->tf->esp -= 4;
+  proc->tf->esp = signal;
+
+  //return address - code of sigret on stack
+  proc->tf->esp -= 4;
+  proc->tf->esp = proc->tf->esp-(4+sizeof(struct trapframe)+numBYTS);
+
+  proc->tf->eip = (uint)(proc->handlers[signal]);
+
+}
+
 void 
 signalHandler(struct trapframe *tf){
   //check that proc is not null
@@ -563,10 +606,15 @@ signalHandler(struct trapframe *tf){
     //cprintf("signal found in %d\n", signal);
     if(proc->handlers[signal] == defHandler)
       proc->handlers[signal](signal);
+    else{
+      //user stack frame preperation
+      while(proc->signalHandling){}
+      proc->signalHandling = 1;
+      userStackPrep(signal);
+    }
     proc->pending  &= ~(1 << signal);
     //printIntBinary(proc->pending);
 
   }
   //proc->oldtf = proc->tf; //backup old trapframe
-
 }

@@ -36,3 +36,11 @@ trapret:
   popl %ds
   addl $0x8, %esp  # trapno and errcode
   iret
+
+.globl sigretLabel
+sigretLabel:
+  movl    $0x24, %eax
+  int     $0x40
+  ret
+.globl sigretLabelEnd
+sigretLabelEnd:

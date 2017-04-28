@@ -7,6 +7,9 @@
 #include "mmu.h"
 #include "proc.h"
 
+extern void  *sigretLabel;
+extern void *sigretLabelEnd;
+
 int
 sys_fork(void)
 {
@@ -119,4 +122,12 @@ sys_sigsend(void)
   return 0;
 }
 
-
+int sys_sigreturn(void){
+  uint numBYTS;
+  //calculate num of bytes in syscall sigret
+  numBYTS = (uint)(&sigretLabel - &sigretLabelEnd);
+  proc->tf->esp += numBYTS;
+  memmove(proc->tf, (void*)proc->tf->esp, sizeof(struct trapframe));
+  proc->signalHandling = 0;
+  return 0;
+}
