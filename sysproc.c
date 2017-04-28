@@ -123,11 +123,9 @@ sys_sigsend(void)
 }
 
 int sys_sigreturn(void){
-  uint numBYTS;
-  //calculate num of bytes in syscall sigret
-  numBYTS = (uint)(&sigretLabel - &sigretLabelEnd);
-  proc->tf->esp += numBYTS;
+  proc->tf->esp -= sizeof(struct trapframe);
   memmove(proc->tf, (void*)proc->tf->esp, sizeof(struct trapframe));
+  cprintf("proc->tf %d\n", proc->tf);
   proc->signalHandling = 0;
   return 0;
 }

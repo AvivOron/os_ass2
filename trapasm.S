@@ -38,9 +38,8 @@ trapret:
   iret
 
 .globl sigretLabel
+.globl sigretLabelEnd
 sigretLabel:
   movl    $0x24, %eax
   int     $0x40
-  ret
-.globl sigretLabelEnd
 sigretLabelEnd:

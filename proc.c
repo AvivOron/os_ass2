@@ -554,7 +554,6 @@ void userStackPrep(int signal){
   //copy to stack - oldtf - bkp tf
   //stack - parameter
   //stack - return address - stack address that holds the call to sigret
-  
   uint numBYTS;
   //calculate num of bytes in syscall sigret
   numBYTS = (uint)(&sigretLabelEnd - &sigretLabel);
@@ -569,10 +568,14 @@ void userStackPrep(int signal){
   //parameter for handler
   proc->tf->esp -= 4;
   *((int*)proc->tf->esp) = signal;
+  //cprintf("sigret code: %d\n", proc->tf->esp+sizeof(struct trapframe)+4);
+  //cprintf("tf code: %d\n", proc->tf->esp+4);
+  //cprintf("signal code: %d\n", proc->tf->esp);
 
   //return address - code of sigret on stack
   proc->tf->esp -= 4;
-  *((int*)proc->tf->esp) = proc->tf->esp-(4+sizeof(struct trapframe));
+  *((int*)proc->tf->esp) = proc->tf->esp+8;
+  //cprintf("oldtf code: %d\n", *((int*)proc->tf->esp));
 
   proc->tf->eip = (uint)(proc->handlers[signal]);
 
