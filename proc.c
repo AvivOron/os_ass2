@@ -568,11 +568,11 @@ void userStackPrep(int signal){
 
   //parameter for handler
   proc->tf->esp -= 4;
-  proc->tf->esp = signal;
+  *((int*)proc->tf->esp) = signal;
 
   //return address - code of sigret on stack
   proc->tf->esp -= 4;
-  proc->tf->esp = proc->tf->esp-(4+sizeof(struct trapframe)+numBYTS);
+  *((int*)proc->tf->esp) = proc->tf->esp-(4+sizeof(struct trapframe));
 
   proc->tf->eip = (uint)(proc->handlers[signal]);
 
