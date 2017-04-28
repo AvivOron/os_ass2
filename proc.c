@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -79,6 +80,7 @@ found:
   
   for(int i=0;i<NUMSIG;i++){
    p->handlers[i] = defHandler;   
+   p->pending = 0;
   }
 
   return p;
@@ -504,7 +506,7 @@ sighandler_t signal(int signum, sighandler_t handler)
     return oldHandler;
 }
 
-/*void printIntBinary(int n)
+void printIntBinary(int n)
 {
     while (n) {
         if (n & 1){
@@ -518,7 +520,7 @@ sighandler_t signal(int signum, sighandler_t handler)
         n >>= 1;
     }
     cprintf("\n");   
-}*/
+}
 
 int sigsend(int pid, int signum)
 {
@@ -529,7 +531,42 @@ int sigsend(int pid, int signum)
             p->pending |= 1 << signum;
         }
     }
-  
     release(&ptable.lock);
     return 0;
+}
+
+void 
+signalHandler(struct trapframe *tf){
+  //check that proc is not null
+  if (proc == 0) {
+    return;
+  }
+  //check that trapframe is from kernel to user space and not otherwise 
+  if (((tf->cs) & 3) != DPL_USER) {
+    return;
+  }
+  //check that we have a signal to handle
+  int signals = proc->pending;
+  int signal = 0;
+  int flag = 0;
+  while(signals && flag == 0){
+    if((signals & 1) == 1){
+      flag = 1;
+    }
+    else{
+      signal++;
+    }
+    signals >>= 1;
+  }
+  //signal found
+  if(flag){
+    //cprintf("signal found in %d\n", signal);
+    if(proc->handlers[signal] == defHandler)
+      proc->handlers[signal](signal);
+    proc->pending  &= ~(1 << signal);
+    //printIntBinary(proc->pending);
+
+  }
+  //proc->oldtf = proc->tf; //backup old trapframe
+
 }
