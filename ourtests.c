@@ -19,7 +19,7 @@ main(int argc, char *argv[])
   else{//son
     sigsend(4,1);
     sigsend(4,2);
-    printf(1,"sent signal to %d\n", pid);
+    printf(1,"sent signal to %d\n", 4);
   }
   exit();
 }

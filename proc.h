@@ -69,6 +69,7 @@ struct proc {
   int pending;             //The pending signals the process recieved
   void (*handlers[NUMSIG])(int signal);    //Handlers function pointers associated with the signals
   int signalHandling;
+  struct trapframe *oldtf;  
 };
 
 // Process memory is laid out contiguously, low addresses first:

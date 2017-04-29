@@ -18,8 +18,8 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
-extern void  *sigretLabel;
-extern void *sigretLabelEnd;
+extern void  *sigretLabel(void);
+extern void *sigretLabelEnd(void);
 
 static void wakeup1(void *chan);
 
@@ -538,7 +538,7 @@ int sigsend(int pid, int signum)
     return 0;
 }
 
-void userStackPrep(int signal){
+void userStackPrep(struct trapframe *tf, int signal, void* handler){
   //1. HAVE TO RETURN TO THE SAME CODE SEGMENT
   //2. TO WORK WITH NON DEFAULT SIGNAL - GO TO USER SPACE LOCATION
   //make tf - move to signalhandler - return to original code 
@@ -554,30 +554,28 @@ void userStackPrep(int signal){
   //copy to stack - oldtf - bkp tf
   //stack - parameter
   //stack - return address - stack address that holds the call to sigret
-  uint numBYTS;
+  uint numBYTS, esp, retAddrs;
+  //backup esp
+  esp = proc->tf->esp;
   //calculate num of bytes in syscall sigret
-  numBYTS = (uint)(&sigretLabelEnd - &sigretLabel);
+  numBYTS = sigretLabelEnd - sigretLabel;
+  //calculate return address
+  retAddrs = esp - numBYTS;
   //sigret code on stack
-  proc->tf->esp -= numBYTS;
-  memmove((void*)proc->tf->esp, sigretLabel, numBYTS);
-
+  memmove((void*)retAddrs, sigretLabel, numBYTS);
+  esp -= (numBYTS+ sizeof(struct trapframe));
   //backup tf on user stack
-  proc->tf->esp -= sizeof(struct trapframe);
-  memmove((void*)proc->tf->esp, proc->tf, sizeof(struct trapframe));
-
+  //esp -= sizeof(struct trapframe);
+  memmove((void*)esp, proc->tf, sizeof(struct trapframe));
   //parameter for handler
-  proc->tf->esp -= 4;
-  *((int*)proc->tf->esp) = signal;
-  //cprintf("sigret code: %d\n", proc->tf->esp+sizeof(struct trapframe)+4);
-  //cprintf("tf code: %d\n", proc->tf->esp+4);
-  //cprintf("signal code: %d\n", proc->tf->esp);
-
+  *((uint*)(esp-4)) = signal;
   //return address - code of sigret on stack
-  proc->tf->esp -= 4;
-  *((int*)proc->tf->esp) = proc->tf->esp+8;
-  //cprintf("oldtf code: %d\n", *((int*)proc->tf->esp));
-
-  proc->tf->eip = (uint)(proc->handlers[signal]);
+  *((uint*)(esp-8)) = retAddrs;
+  esp -= 8;
+  //resotre esp
+  proc->tf->esp = esp;
+  //get handler working
+  proc->tf->eip = (uint)(handler);
 
 }
 
@@ -611,9 +609,11 @@ signalHandler(struct trapframe *tf){
       proc->handlers[signal](signal);
     else{
       //user stack frame preperation
-      while(proc->signalHandling){}
-      proc->signalHandling = 1;
-      userStackPrep(signal);
+      if(!proc->signalHandling){
+        proc->signalHandling = 1;
+        void* handler = proc->handlers[signal];
+        userStackPrep(tf, signal, handler);
+      }
     }
     proc->pending  &= ~(1 << signal);
     //printIntBinary(proc->pending);

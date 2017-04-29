@@ -40,6 +40,6 @@ trapret:
 .globl sigretLabel
 .globl sigretLabelEnd
 sigretLabel:
-  movl    $0x24, %eax
-  int     $0x40
+  movl    $24, %eax
+  int     $64
 sigretLabelEnd:

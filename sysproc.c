@@ -123,9 +123,9 @@ sys_sigsend(void)
 }
 
 int sys_sigreturn(void){
-  proc->tf->esp -= sizeof(struct trapframe);
+  //resote old tf
+  proc->tf->esp += 4;
   memmove(proc->tf, (void*)proc->tf->esp, sizeof(struct trapframe));
-  cprintf("proc->tf %d\n", proc->tf);
   proc->signalHandling = 0;
   return 0;
 }
