@@ -18,6 +18,8 @@ main(int argc, char *argv[])
   } 
   else{//son
     sigsend(4,1);
+    alarm(2);
+    sleep(2);
     sigsend(4,2);
     printf(1,"sent signal to %d\n", 4);
   }

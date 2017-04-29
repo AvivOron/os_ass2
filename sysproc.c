@@ -129,3 +129,15 @@ int sys_sigreturn(void){
   proc->signalHandling = 0;
   return 0;
 }
+
+int
+sys_alarm(void)
+{
+  int a;
+
+  if(argint(0, &a) < 0)
+    return -1;
+  
+  proc->alarmTicks = a;
+  return 0;
+}

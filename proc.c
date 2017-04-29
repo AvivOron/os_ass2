@@ -621,3 +621,15 @@ signalHandler(struct trapframe *tf){
   }
   //proc->oldtf = proc->tf; //backup old trapframe
 }
+
+void updateAlarmSignal(void){
+    struct proc *p;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->alarmTicks == 1){
+            p->pending |= 1 << 14;
+            p->alarmTicks -= 1;
+      }
+      else if(p->alarmTicks > 1)
+        p->alarmTicks -= 1;
+    }
+}

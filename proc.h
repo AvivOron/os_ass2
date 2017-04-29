@@ -70,6 +70,7 @@ struct proc {
   void (*handlers[NUMSIG])(int signal);    //Handlers function pointers associated with the signals
   int signalHandling;
   struct trapframe *oldtf;  
+  int alarmTicks;
 };
 
 // Process memory is laid out contiguously, low addresses first:
