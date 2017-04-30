@@ -139,6 +139,10 @@ vectors.S: vectors.pl
 
 ULIB = ulib.o usys.o printf.o umalloc.o
 
+_userthread: userthread.o 
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _userthread userthread.o $(ULIB)
+	$(OBJDUMP) -S _userthread > userthread.asm
+
 _%: %.o $(ULIB)
 	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $^
 	$(OBJDUMP) -S $@ > $*.asm
@@ -175,6 +179,7 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
+	_userthread\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
