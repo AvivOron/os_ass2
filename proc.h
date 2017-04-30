@@ -1,5 +1,6 @@
 #define NUMSIG 32
 
+
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -67,6 +68,9 @@ struct proc {
   char name[16];               // Process name (debugging)
   int pending;             //The pending signals the process recieved
   void (*handlers[NUMSIG])(int signal);    //Handlers function pointers associated with the signals
+  int signalHandling;
+  struct trapframe *oldtf;  
+  int alarmTicks;
 };
 
 // Process memory is laid out contiguously, low addresses first:

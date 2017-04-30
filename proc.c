@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -17,6 +18,8 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
+extern void  *sigretLabel(void);
+extern void *sigretLabelEnd(void);
 
 static void wakeup1(void *chan);
 
@@ -79,6 +82,8 @@ found:
   
   for(int i=0;i<NUMSIG;i++){
    p->handlers[i] = defHandler;   
+   p->pending = 0;
+   p->signalHandling = 0;
   }
 
   return p;
@@ -504,7 +509,7 @@ sighandler_t signal(int signum, sighandler_t handler)
     return oldHandler;
 }
 
-/*void printIntBinary(int n)
+void printIntBinary(int n)
 {
     while (n) {
         if (n & 1){
@@ -518,7 +523,7 @@ sighandler_t signal(int signum, sighandler_t handler)
         n >>= 1;
     }
     cprintf("\n");   
-}*/
+}
 
 int sigsend(int pid, int signum)
 {
@@ -529,7 +534,102 @@ int sigsend(int pid, int signum)
             p->pending |= 1 << signum;
         }
     }
-  
     release(&ptable.lock);
     return 0;
+}
+
+void userStackPrep(struct trapframe *tf, int signal, void* handler){
+  //1. HAVE TO RETURN TO THE SAME CODE SEGMENT
+  //2. TO WORK WITH NON DEFAULT SIGNAL - GO TO USER SPACE LOCATION
+  //make tf - move to signalhandler - return to original code 
+  //eip - backup also 
+  //how to make the code go to signal handler - move the function address to the eip 
+  //sighandler also needs parameter
+  //how to return? needs to return after sighander to original location
+  //make a syscall that return to old tf 
+  //need to backtf before sighandler
+
+  //order:
+  //copy to stack - code assembly with sigret from backup on stack
+  //copy to stack - oldtf - bkp tf
+  //stack - parameter
+  //stack - return address - stack address that holds the call to sigret
+  uint numBYTS, esp, retAddrs;
+  //backup esp
+  esp = proc->tf->esp;
+  //calculate num of bytes in syscall sigret
+  numBYTS = sigretLabelEnd - sigretLabel;
+  //calculate return address
+  retAddrs = esp - numBYTS;
+  //sigret code on stack
+  memmove((void*)retAddrs, sigretLabel, numBYTS);
+  esp -= (numBYTS+ sizeof(struct trapframe));
+  //backup tf on user stack
+  //esp -= sizeof(struct trapframe);
+  memmove((void*)esp, proc->tf, sizeof(struct trapframe));
+  //parameter for handler
+  *((uint*)(esp-4)) = signal;
+  //return address - code of sigret on stack
+  *((uint*)(esp-8)) = retAddrs;
+  esp -= 8;
+  //resotre esp
+  proc->tf->esp = esp;
+  //get handler working
+  proc->tf->eip = (uint)(handler);
+
+}
+
+void 
+signalHandler(struct trapframe *tf){
+  //check that proc is not null
+  if (proc == 0) {
+    return;
+  }
+  //check that trapframe is from kernel to user space and not otherwise 
+  if (((tf->cs) & 3) != DPL_USER) {
+    return;
+  }
+  //check that we have a signal to handle
+  int signals = proc->pending;
+  int signal = 0;
+  int flag = 0;
+  while(signals && flag == 0){
+    if((signals & 1) == 1){
+      flag = 1;
+    }
+    else{
+      signal++;
+    }
+    signals >>= 1;
+  }
+  //signal found
+  if(flag){
+    //cprintf("signal found in %d\n", signal);
+    if(proc->handlers[signal] == defHandler)
+      proc->handlers[signal](signal);
+    else{
+      //user stack frame preperation
+      if(!proc->signalHandling){
+        proc->signalHandling = 1;
+        void* handler = proc->handlers[signal];
+        userStackPrep(tf, signal, handler);
+      }
+    }
+    proc->pending  &= ~(1 << signal);
+    //printIntBinary(proc->pending);
+
+  }
+  //proc->oldtf = proc->tf; //backup old trapframe
+}
+
+void updateAlarmSignal(void){
+    struct proc *p;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->alarmTicks == 1){
+            p->pending |= 1 << 14;
+            p->alarmTicks -= 1;
+      }
+      else if(p->alarmTicks > 1)
+        p->alarmTicks -= 1;
+    }
 }

@@ -31,3 +31,5 @@ SYSCALL(sleep)
 SYSCALL(uptime)
 SYSCALL(signal)
 SYSCALL(sigsend);
+SYSCALL(sigreturn);
+SYSCALL(alarm);
