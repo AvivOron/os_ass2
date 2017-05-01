@@ -563,10 +563,14 @@ void userStackPrep(struct trapframe *tf, int signal, void* handler){
   retAddrs = esp - numBYTS;
   //sigret code on stack
   memmove((void*)retAddrs, sigretLabel, numBYTS);
-  esp -= (numBYTS+ sizeof(struct trapframe));
+  esp -= numBYTS;
   //backup tf on user stack
-  //esp -= sizeof(struct trapframe);
+  esp -= sizeof(struct trapframe);
+  while(esp%4 != 0)
+    esp--;
   memmove((void*)esp, proc->tf, sizeof(struct trapframe));
+  //for (int i = 0; i < 20; i++)
+    //cprintf("tf address:  %d  content:  %d\n", esp+(i*4), *((uint*)(esp+(i*4))));
   //parameter for handler
   *((uint*)(esp-4)) = signal;
   //return address - code of sigret on stack

@@ -17,16 +17,17 @@ typedef struct trapframe *tf;
 uint localEsp;
 
 struct thread {
-  int        sp;                /* curent stack pointer */
+  int  sp;                /* curent stack pointer */
   char stack[STACK_SIZE];       /* the thread's stack */
   struct trapframe *oldtf;        // Trap frame for current syscall  
   uint ebp;
   uint esp;
- uint eip;
-  int        state;             /* running, runnable, waiting */
+  uint eip;
+  int  state;             /* running, runnable, waiting */
   int id;
   int executed;
 };
+
 static thread_t all_thread[MAX_UTHREADS];
 static thread_p  current_thread;
 static thread_p  next_thread;
@@ -63,34 +64,34 @@ void uthread_schedule()
     printf(2, "thread_schedule: no runnable threads; deadlock\n");
     exit();
   }
-
   
-  if (current_thread != next_thread ) {         /* switch threads?  */
-      next_thread->state = RUNNING;
-      
+  if (current_thread != next_thread ) {         /* switch threads  */
+    //if first execution of thread - only override the tf fields
     if(!next_thread->executed){
       asm("movl %%esp, %0\n\t"
           : "=r" (localEsp)
           :
           );
-      memmove((void*)&(next_thread->oldtf),(void*)(localEsp+24), sizeof(struct trapframe));
-      next_thread->oldtf->ebp = next_thread->ebp;  
-      printf(2,"this address %d\n", localEsp+24);
-      printf(2,"this ebp %d\n", next_thread->oldtf->ebp);
-      next_thread->executed = 1;
-      //(*oldtf)->ebp = next_thread->ebp;               
-      //printf(2, "current thread: %d, next thread: %d, current thread sp: %d, next thread sp: %d\n", current_thread->id, next_thread->id, localEsp, next_thread->sp);  
+      //for (int i = 0; i < 40; i++)
+        //printf(2,"esp address:  %d  content:  %d\n", localEsp+(i*4), *((uint*)(localEsp+(i*4))));      
+
+    next_thread->state = RUNNING;
+    memmove((void*)&(next_thread->oldtf),(void*)(localEsp+20), sizeof(struct trapframe));
+    printf(2,"ebp nt:  %d tid =  %d\n", next_thread->ebp, next_thread->id);      
+    //next_thread->oldtf->ebp = next_thread->ebp;  
+
+    next_thread->executed = 1;
     }
-        asm("movl current_thread, %eax\n\t"
+
+    asm("movl current_thread, %eax\n\t"
         "movl %esp, (%eax)\n\t"
         "movl next_thread, %eax\n\t"
         "movl %eax, current_thread\n\t"
         "movl $0, next_thread\n\t"
         "movl current_thread, %eax\n\t"
-        "movl (%eax), %esp\n\t");
-            
-    
-  } else
+        "movl (%eax), %esp\n\t");        
+  }
+  else
     next_thread = 0;
   
   signal(14, uthread_schedule);
@@ -115,7 +116,9 @@ uthread_exit()
   current_thread->state = FREE;
 }
 
-int uthread_create(void (*start_func)(void *), void*arg)
+
+int 
+uthread_create(void (*start_func)(void *), void*arg)
 {
   thread_p t;
   int index = 0;
@@ -133,11 +136,14 @@ int uthread_create(void (*start_func)(void *), void*arg)
     //t->sp -= 4;     
     t->ebp = t->sp; //backing up the eb/sp to top of the stack
     t->esp = t->sp;
-    printf(2, "ebp: %d\n",t->ebp);
     t->eip = (int)start_func; // set eip to the given function of the thread
     t->state = RUNNABLE;
     t->id = index;
     t->executed = 0;
+
+    all_thread[index] = *t;
+
+    printf(2, "ebp create: %d, id: %d\n",t->ebp, t->id);
     return index;
   }
   
@@ -187,8 +193,6 @@ main(int argc, char *argv[])
   int* nothing = 0;
   uthread_init();
   uthread_create(mythread, nothing);
-  sleep(5);
-  sleep(5);
   sleep(5);
   /*uthread_create(mythread, nothing);
   */
