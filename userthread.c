@@ -12,7 +12,6 @@
 #define UTHREAD_QUANTA 5
 
 typedef struct thread thread_t, *thread_p;
-typedef struct mutex mutex_t, *mutex_p;
 
 struct thread {
   int        sp;                /* curent stack pointer */
@@ -23,23 +22,20 @@ struct thread {
 static thread_t all_thread[MAX_UTHREADS];
 static thread_p  current_thread;
 static thread_p  next_thread;
-extern void thread_switch(void);
  
-int uthread_init()
-{
-        
 
-  current_thread = &all_thread[0];
-  current_thread->state = RUNNING;
-  //signal(14, uthread_schedule);
-  //alarm(UTHREAD_QUANTA);
-  return 1;
+int uthread_self()
+{
+    return current_thread->id;
 }
 
 
 void uthread_schedule()
 {
+
   thread_p t;
+  current_thread->state = RUNNABLE;
+
 
   /* Find another runnable thread. */
   for (t = all_thread; t < all_thread + MAX_UTHREADS; t++) {
@@ -52,6 +48,7 @@ void uthread_schedule()
   if (t >= all_thread + MAX_UTHREADS && current_thread->state == RUNNABLE) {
     /* The current thread is the only runnable thread; run it. */
     next_thread = current_thread;
+    printf(2, "keep running thread %d\n", current_thread->id);
   }
 
   if (next_thread == 0) {
@@ -59,34 +56,52 @@ void uthread_schedule()
     exit();
   }
 
-  if (current_thread != next_thread) {         /* switch threads?  */
-    next_thread->state = RUNNING;
+  
+  if (current_thread != next_thread ) {         /* switch threads?  */
+      next_thread->state = RUNNING;
     
-       asm("jmp skipme\n\t"
-        ".globl thread_switch\n\t"
-        "thread_switch:\n\t"
-        "pushal\n\t"
-        "movl current_thread, %eax\n\t"
+      printf(2, "current thread: %d, next thread: %d, current thread sp: %d, next thread sp: %d\n", current_thread->id, next_thread->id, current_thread->sp, next_thread->sp);
+    
+        asm("movl current_thread, %eax\n\t"
         "movl %esp, (%eax)\n\t"
         "movl next_thread, %eax\n\t"
         "movl %eax, current_thread\n\t"
         "movl $0, next_thread\n\t"
         "movl current_thread, %eax\n\t"
-        "movl (%eax), %esp\n\t"
-        "popal\n\t"
-        "ret\n\t"
-        "skipme:"
-        );
-        
-        thread_switch();
-    
+        "movl (%eax), %esp\n\t");
+            
     
   } else
     next_thread = 0;
   
-  //signal(14, uthread_schedule);
-  //alarm(UTHREAD_QUANTA);
+  signal(14, uthread_schedule);
+  alarm(UTHREAD_QUANTA);
+
 }
+
+int uthread_init()
+{
+  current_thread = &all_thread[0];
+  current_thread->state = RUNNING;
+  signal(14, uthread_schedule);
+  alarm(UTHREAD_QUANTA);
+
+  return 1;
+}
+
+void 
+uthread_exit()
+{
+  current_thread->state = FREE;
+  uthread_schedule();
+}
+
+void wrapStartFunc(void (*start_func)(void *), void*arg)
+{
+ start_func(arg);
+ uthread_exit();
+}
+
 
 int uthread_create(void (*start_func)(void *), void*arg)
 {
@@ -98,9 +113,14 @@ int uthread_create(void (*start_func)(void *), void*arg)
   }
   if(index > 0 && index < MAX_UTHREADS)
   {
+      printf(2, "address is: %d\n",t);
     t->sp = (int) (t->stack + STACK_SIZE);   // set sp to the top of the stack
-    t->sp -= 4;                              // space for return address
-    * (int *) (t->sp) = (int)start_func;           // push return address on stack
+    t->sp -= 4;                
+     * (int *) (t->sp) = (int)start_func;            // space for return address
+    t->sp -= 4;                
+     * (int *) (t->sp)= (int)arg;
+    t->sp -= 4;                
+    * (int *) (t->sp) = (int)wrapStartFunc;           // push return address on stack
     t->sp -= 32;                             // space for registers that thread_switch will push
     t->state = RUNNABLE;
     t->id = index;
@@ -110,17 +130,8 @@ int uthread_create(void (*start_func)(void *), void*arg)
   return -1;
 }
 
-void 
-uthread_exit()
-{
-  current_thread->state = FREE;
-  uthread_schedule();
-}
 
-int uthread_self()
-{
-    return current_thread->id;
-}
+
 
 int uthread_join(int tid)
 {
@@ -129,6 +140,7 @@ int uthread_join(int tid)
     if (t->id == tid)
     {
         while(!t->state == FREE) { }
+        break;
     }
   }
   
@@ -142,39 +154,30 @@ int uthread_sleep(int ticks)
     return 0;
 }
 
-void 
-thread_yield(void)
-{
-  current_thread->state = RUNNABLE;
-  uthread_schedule();
-}
-
 
 void mythread(void* arg)
 {
   int i;
   printf(1, "thread %d: running\n", uthread_self());
   for (i = 0; i < 100; i++) {
-      if(i==10 && current_thread->id == 1){
-       uthread_sleep(10);   
-      }
     printf(1, "thread %d says hello\n", uthread_self());
-    thread_yield();
   }
   printf(1, "thread %d: exit\n", uthread_self());
   current_thread->state = FREE;
-  uthread_schedule();
 }
 
 
 int 
 main(int argc, char *argv[]) 
 {
-
   int* nothing = 0;
   uthread_init();
   uthread_create(mythread, nothing);
-  uthread_create(mythread, nothing);
-  uthread_schedule();
-  return 0;
+  sleep(5);
+  sleep(5);
+  sleep(5);
+  /*uthread_create(mythread, nothing);
+  */
+  exit();
+  return 1;
 }

@@ -125,6 +125,7 @@ sys_sigsend(void)
 int sys_sigreturn(void){
   //resote old tf
   proc->tf->esp += 4;
+  cprintf("tf address on stack: %d\n", proc->tf->esp);
   memmove(proc->tf, (void*)proc->tf->esp, sizeof(struct trapframe));
   proc->signalHandling = 0;
   return 0;
