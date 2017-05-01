@@ -12,12 +12,18 @@
 #define UTHREAD_QUANTA 5
 
 typedef struct thread thread_t, *thread_p;
+typedef struct trapframe *tf; 
 
 struct thread {
   int        sp;                /* curent stack pointer */
   char stack[STACK_SIZE];       /* the thread's stack */
+  struct trapframe *tf;        // Trap frame for current syscall  
+  uint ebp;
+  uint esp;
+ uint eip;
   int        state;             /* running, runnable, waiting */
   int id;
+  int executed;
 };
 static thread_t all_thread[MAX_UTHREADS];
 static thread_p  current_thread;
@@ -59,8 +65,23 @@ void uthread_schedule()
   
   if (current_thread != next_thread ) {         /* switch threads?  */
       next_thread->state = RUNNING;
-    
-      printf(2, "current thread: %d, next thread: %d, current thread sp: %d, next thread sp: %d\n", current_thread->id, next_thread->id, current_thread->sp, next_thread->sp);
+      
+    if(!next_thread->executed){
+         uint localEsp = 0;
+                      asm("movl %%esp, %0\n\t"
+                      : "=r" (localEsp)
+                      :
+                    );
+
+                      struct trapframe * oldtf =  (struct trapframe*)*((uint*)(localEsp+32));
+                      printf(2,"hello %d\n", oldtf->ebp);
+                      //(*oldtf)->ebp = next_thread->ebp;
+                      
+                      
+              printf(2, "current thread: %d, next thread: %d, current thread sp: %d, next thread sp: %d\n", current_thread->id, next_thread->id, localEsp, next_thread->sp);
+
+        
+    }
     
         asm("movl current_thread, %eax\n\t"
         "movl %esp, (%eax)\n\t"
@@ -92,16 +113,9 @@ int uthread_init()
 void 
 uthread_exit()
 {
+  printf(2, "exitting\n");
   current_thread->state = FREE;
-  uthread_schedule();
 }
-
-void wrapStartFunc(void (*start_func)(void *), void*arg)
-{
- start_func(arg);
- uthread_exit();
-}
-
 
 int uthread_create(void (*start_func)(void *), void*arg)
 {
@@ -113,17 +127,18 @@ int uthread_create(void (*start_func)(void *), void*arg)
   }
   if(index > 0 && index < MAX_UTHREADS)
   {
-      printf(2, "address is: %d\n",t);
     t->sp = (int) (t->stack + STACK_SIZE);   // set sp to the top of the stack
+    t->ebp = t->sp; //backing up the eb/sp to top of the stack
+    t->esp = t->sp;
     t->sp -= 4;                
-     * (int *) (t->sp) = (int)start_func;            // space for return address
+     * (int *) (t->sp) = (int)arg; //saving the func arg          
     t->sp -= 4;                
-     * (int *) (t->sp)= (int)arg;
-    t->sp -= 4;                
-    * (int *) (t->sp) = (int)wrapStartFunc;           // push return address on stack
-    t->sp -= 32;                             // space for registers that thread_switch will push
+     * (int *) (t->sp)= (int)uthread_exit; //saving the return address which is exit call
+    t->sp -= 4;     
+    t->eip = (int)start_func; // set eip to the given function of the thread
     t->state = RUNNABLE;
     t->id = index;
+    t->executed = 0;
     return index;
   }
   
