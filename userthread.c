@@ -45,14 +45,15 @@ void uthread_schedule()
   thread_p t;
   current_thread->state = RUNNABLE;
 
-
   /* Find another runnable thread. */
+  alarm(0);
   for (t = all_thread; t < all_thread + MAX_UTHREADS; t++) {
     if (t->state == RUNNABLE && t != current_thread) {
       next_thread = t;
       break;
     }
   }
+  alarm(UTHREAD_QUANTA);
 
   if (t >= all_thread + MAX_UTHREADS && current_thread->state == RUNNABLE) {
     /* The current thread is the only runnable thread; run it. */
@@ -67,18 +68,28 @@ void uthread_schedule()
   
   if (current_thread != next_thread ) {         /* switch threads  */
     //if first execution of thread - only override the tf fields
-    if(!next_thread->executed){
+
+    if(!next_thread->executed && next_thread->id !=0){
       asm("movl %%esp, %0\n\t"
           : "=r" (localEsp)
           :
           );
-      //for (int i = 0; i < 40; i++)
-        //printf(2,"esp address:  %d  content:  %d\n", localEsp+(i*4), *((uint*)(localEsp+(i*4))));      
-
+      for (int i = 0; i < 40; i++)
+        printf(2,"esp address:  %d  content:  %d\n", localEsp+(i*4), *((uint*)(localEsp+(i*4))));      
     next_thread->state = RUNNING;
-    memmove((void*)&(next_thread->oldtf),(void*)(localEsp+20), sizeof(struct trapframe));
+
+    uint tfaddrs = localEsp + 36;
+
+    memmove((void*)(next_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
+
+    next_thread->oldtf->ebp = next_thread->ebp;
+    next_thread->oldtf->eip = next_thread->eip;
+    next_thread->oldtf->esp = next_thread->esp;
+
+    memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
+
     printf(2,"ebp nt:  %d tid =  %d\n", next_thread->ebp, next_thread->id);      
-    //next_thread->oldtf->ebp = next_thread->ebp;  
+
 
     next_thread->executed = 1;
     }
@@ -122,6 +133,7 @@ uthread_create(void (*start_func)(void *), void*arg)
 {
   thread_p t;
   int index = 0;
+  alarm(0);
   for (t = all_thread; t < all_thread + MAX_UTHREADS; t++) {
     if (t->state == FREE) break;
     index++;
@@ -142,11 +154,11 @@ uthread_create(void (*start_func)(void *), void*arg)
     t->executed = 0;
 
     all_thread[index] = *t;
-
+    alarm(UTHREAD_QUANTA);
     printf(2, "ebp create: %d, id: %d\n",t->ebp, t->id);
     return index;
   }
-  
+  alarm(UTHREAD_QUANTA);
   return -1;
 }
 
