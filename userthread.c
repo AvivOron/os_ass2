@@ -86,7 +86,9 @@ void uthread_schedule()
     next_thread->oldtf->eip = next_thread->eip;
     next_thread->oldtf->esp = next_thread->esp;
 
-    memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
+    tfaddrs = (uint)next_thread->oldtf;
+
+    //memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
 
     printf(2,"ebp nt:  %d tid =  %d\n", next_thread->ebp, next_thread->id);      
 
