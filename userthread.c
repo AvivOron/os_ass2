@@ -1,6 +1,7 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
+#include "x86.h"
 
 /* Possible states of a thread; */
 #define FREE        0x0
@@ -13,11 +14,12 @@
 
 typedef struct thread thread_t, *thread_p;
 typedef struct trapframe *tf; 
+uint localEsp;
 
 struct thread {
   int        sp;                /* curent stack pointer */
   char stack[STACK_SIZE];       /* the thread's stack */
-  struct trapframe *tf;        // Trap frame for current syscall  
+  struct trapframe *oldtf;        // Trap frame for current syscall  
   uint ebp;
   uint esp;
  uint eip;
@@ -67,22 +69,18 @@ void uthread_schedule()
       next_thread->state = RUNNING;
       
     if(!next_thread->executed){
-         uint localEsp = 0;
-                      asm("movl %%esp, %0\n\t"
-                      : "=r" (localEsp)
-                      :
-                    );
-
-                      struct trapframe * oldtf =  (struct trapframe*)*((uint*)(localEsp+32));
-                      printf(2,"hello %d\n", oldtf->ebp);
-                      //(*oldtf)->ebp = next_thread->ebp;
-                      
-                      
-              printf(2, "current thread: %d, next thread: %d, current thread sp: %d, next thread sp: %d\n", current_thread->id, next_thread->id, localEsp, next_thread->sp);
-
-        
+      asm("movl %%esp, %0\n\t"
+          : "=r" (localEsp)
+          :
+          );
+      memmove((void*)&(next_thread->oldtf),(void*)(localEsp+24), sizeof(struct trapframe));
+      next_thread->oldtf->ebp = next_thread->ebp;  
+      printf(2,"this address %d\n", localEsp+24);
+      printf(2,"this ebp %d\n", next_thread->oldtf->ebp);
+      next_thread->executed = 1;
+      //(*oldtf)->ebp = next_thread->ebp;               
+      //printf(2, "current thread: %d, next thread: %d, current thread sp: %d, next thread sp: %d\n", current_thread->id, next_thread->id, localEsp, next_thread->sp);  
     }
-    
         asm("movl current_thread, %eax\n\t"
         "movl %esp, (%eax)\n\t"
         "movl next_thread, %eax\n\t"
@@ -128,13 +126,14 @@ int uthread_create(void (*start_func)(void *), void*arg)
   if(index > 0 && index < MAX_UTHREADS)
   {
     t->sp = (int) (t->stack + STACK_SIZE);   // set sp to the top of the stack
-    t->ebp = t->sp; //backing up the eb/sp to top of the stack
-    t->esp = t->sp;
     t->sp -= 4;                
      * (int *) (t->sp) = (int)arg; //saving the func arg          
     t->sp -= 4;                
      * (int *) (t->sp)= (int)uthread_exit; //saving the return address which is exit call
-    t->sp -= 4;     
+    //t->sp -= 4;     
+    t->ebp = t->sp; //backing up the eb/sp to top of the stack
+    t->esp = t->sp;
+    printf(2, "ebp: %d\n",t->ebp);
     t->eip = (int)start_func; // set eip to the given function of the thread
     t->state = RUNNABLE;
     t->id = index;
