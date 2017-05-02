@@ -83,16 +83,15 @@ void uthread_schedule()
   if (current_thread != next_thread ) {         /* switch threads  */
     //if first execution of thread - only override the tf fields
       
-    asm("movl %%esp, %0\n\t"
+    asm("movl %%ebp, %0\n\t"
     : "=r" (localEsp)
     :
     );
         
     if(!next_thread->executed && next_thread->id !=0){
         next_thread->state = RUNNING;
-
-        uint tfaddrs = localEsp + 20;
-        printf(2,"");   
+        uint tfaddrs = localEsp + 12;
+  
 
       
         memmove((void*)(&current_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
@@ -108,8 +107,7 @@ void uthread_schedule()
     }
     else{
       //not first time running thread
-      uint tfaddrs = localEsp + 20;
-      printf(2,"");   
+      uint tfaddrs = localEsp + 12;
       
       memmove((void*)(&current_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
       memmove((void*)(tfaddrs),(void*)(&next_thread->oldtf), sizeof(struct trapframe));
