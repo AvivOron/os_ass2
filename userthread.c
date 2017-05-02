@@ -19,7 +19,7 @@ uint localEsp;
 struct thread {
   int  sp;                /* curent stack pointer */
   char stack[STACK_SIZE];       /* the thread's stack */
-  struct trapframe *oldtf;        // Trap frame for current syscall  
+  struct trapframe oldtf;        // Trap frame for current syscall  
   uint ebp;
   uint esp;
   uint eip;
@@ -90,30 +90,27 @@ void uthread_schedule()
         next_thread->state = RUNNING;
 
         uint tfaddrs = localEsp + 20;
-        //printf(2,"");   
-        for (int i = 0; i < 40; i++)
-            printf(2,"", localEsp+(i*4), *((uint*)(localEsp+(i*4))));
+        printf(2,"");   
+
       
-        memmove((void*)(current_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
-        memmove((void*)(next_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
+        memmove((void*)(&current_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
+        memmove((void*)(&next_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
         
-        next_thread->oldtf->ebp = next_thread->ebp;
-        next_thread->oldtf->eip = next_thread->eip;
-        next_thread->oldtf->esp = next_thread->esp;
+        next_thread->oldtf.ebp = next_thread->ebp;
+        next_thread->oldtf.eip = next_thread->eip;
+        next_thread->oldtf.esp = next_thread->esp;
 
-        //tfaddrs = (uint)next_thread->oldtf; //do we need it??
+        memmove((void*)(tfaddrs),(void*)(&next_thread->oldtf), sizeof(struct trapframe));
 
-        memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
         next_thread->executed = 1;
     }
     else{
+      //not first time running
       uint tfaddrs = localEsp + 20;
+      printf(2,"");   
       
-     for (int i = 0; i < 40; i++)
-            printf(2,"", localEsp+(i*4), *((uint*)(localEsp+(i*4))));
-      
-      memmove((void*)(current_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
-      memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
+      memmove((void*)(&current_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
+      memmove((void*)(tfaddrs),(void*)(&next_thread->oldtf), sizeof(struct trapframe));
       
     }
     current_thread = next_thread;   
@@ -232,6 +229,14 @@ main(int argc, char *argv[])
   uthread_init();
   uthread_create(mythread, nothing);
   uthread_create(mythread1, nothing);
+  sleep(5);
+
+  uthread_create(mythread, nothing);
+  uthread_create(mythread1, nothing);
+
+    sleep(5);
+
+  uthread_create(mythread, nothing);
 
   sleep(5);
   /*uthread_create(mythread, nothing);
