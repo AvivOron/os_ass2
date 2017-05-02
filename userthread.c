@@ -7,6 +7,8 @@
 #define FREE        0x0
 #define RUNNING     0x1
 #define RUNNABLE    0x2
+#define WAITING    0x3
+#define SLEEPING    0x4
 
 #define STACK_SIZE  4096
 #define MAX_UTHREADS 64
@@ -26,6 +28,7 @@ struct thread {
   int  state;             /* running, runnable, waiting */
   int id;
   int executed;
+  int waitingFor;
 };
 
 static thread_t all_thread[MAX_UTHREADS];
@@ -43,13 +46,12 @@ void uthread_schedule()
 {
 
   thread_p t;
+  alarm(0);
+
   if(current_thread->state == RUNNING)
-  {
     current_thread->state = RUNNABLE;
-  }
 
   /* Find another runnable thread. */
-  alarm(0);
   for (t = current_thread; t < all_thread + MAX_UTHREADS; t++) {
     if (t->state == RUNNABLE && t != current_thread) {
       next_thread = t;
@@ -147,14 +149,16 @@ uthread_exit()
   current_thread->esp =0;
   current_thread->eip=0;
   current_thread->state=0;             /* running, runnable, waiting */
-  current_thread->id=0;
   current_thread->executed=0;
   for (t = all_thread; t < all_thread + MAX_UTHREADS; t++) {
-    if (t->state == RUNNABLE && t->id != 0) {
+    if (t->state == RUNNABLE && t->id != 0) 
       flag = 1;
-      break;
-    }
+    //wake up threads waiting for me
+    if (t->state == WAITING && t->waitingFor == current_thread->id)
+      t->state = RUNNABLE;
   }
+  current_thread->id=0;
+
   alarm(UTHREAD_QUANTA);
 
   if(!flag)
@@ -192,6 +196,7 @@ uthread_create(void (*start_func)(void *), void*arg)
     t->state = RUNNABLE;
     t->id = index;
     t->executed = 0;
+    t->waitingFor = -1;
 
    alarm(UTHREAD_QUANTA);
     //printf(2, "ebp create: %d, id: %d\n",t->ebp, t->id);
@@ -201,21 +206,18 @@ uthread_create(void (*start_func)(void *), void*arg)
   return -1;
 }
 
-
-
-
 int uthread_join(int tid)
 {
+  alarm(0);
   thread_p t;
-  for (t = all_thread; t < all_thread + MAX_UTHREADS; t++) {
-    if (t->id == tid)
-    {
-        while(!t->state == FREE) { }
-        break;
-    }
+  if(tid >= 0 && tid < MAX_UTHREADS && all_thread[tid].state != FREE){
+    t->waitingFor = tid;
+    t->state = WAITING;
   }
-  
-  return 0;
+  else 
+    return -1;
+  alarm(UTHREAD_QUANTA);
+  return 0; 
 }
 
 int uthread_sleep(int ticks)
@@ -230,7 +232,7 @@ void mythread(void* arg)
 {
   int i;
   printf(1, "thread %d: running\n", uthread_self());
-  for (i = 0; i < 5; i++) {
+  for (i = 0; i < 25; i++) {
     printf(1, "thread %d says hello\n", uthread_self());
   }
   printf(1, "thread %d: exit\n", uthread_self());
@@ -241,7 +243,7 @@ void mythread1(void* arg)
 {
   int i;
   printf(1, "thread %d: running\n", uthread_self());
-  for (i = 0; i < 5; i++) {
+  for (i = 0; i < 25; i++) {
     printf(1, "thread %d says bye bye\n", uthread_self());
   }
   printf(1, "thread %d: exit\n", uthread_self());
@@ -257,17 +259,18 @@ main(int argc, char *argv[])
   uthread_create(mythread, nothing);
   uthread_create(mythread1, nothing);
   sleep(5);
-
+  uthread_join(1);
+  uthread_join(2);
   uthread_create(mythread, nothing);
   //uthread_create(mythread1, nothing);
+  uthread_join(3);
 
-    sleep(5);
+  sleep(5);
+  sleep(5);
+  sleep(5);
+  sleep(5);
 
   //uthread_create(mythread, nothing);
-
-  sleep(5);
-    sleep(5);
-  sleep(5);
 
   /*uthread_create(mythread, nothing);
   */
