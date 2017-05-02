@@ -69,7 +69,7 @@ void uthread_schedule()
   if (t >= all_thread + MAX_UTHREADS && current_thread->state == RUNNABLE) {
     /* The current thread is the only runnable thread; run it. */
     next_thread = current_thread;
-    printf(2, "keep running thread %d\n", current_thread->id);
+    //printf(2, "keep running thread %d\n", current_thread->id);
   }
 
   if (next_thread == 0) {
@@ -77,46 +77,47 @@ void uthread_schedule()
     exit();
   }
   
+  
   if (current_thread != next_thread ) {         /* switch threads  */
     //if first execution of thread - only override the tf fields
-
+      
+    asm("movl %%esp, %0\n\t"
+    : "=r" (localEsp)
+    :
+    );
+        
     if(!next_thread->executed && next_thread->id !=0){
-      asm("movl %%esp, %0\n\t"
-          : "=r" (localEsp)
-          :
-          );
-      for (int i = 0; i < 40; i++)
-        printf(2,"esp address:  %d  content:  %d\n", localEsp+(i*4), *((uint*)(localEsp+(i*4))));      
-    next_thread->state = RUNNING;
+        next_thread->state = RUNNING;
 
-    uint tfaddrs = localEsp + 36;
+        uint tfaddrs = localEsp + 20;
+        //printf(2,"");   
+        for (int i = 0; i < 40; i++)
+            printf(2,"", localEsp+(i*4), *((uint*)(localEsp+(i*4))));
+      
+        memmove((void*)(current_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
+        memmove((void*)(next_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
+        
+        next_thread->oldtf->ebp = next_thread->ebp;
+        next_thread->oldtf->eip = next_thread->eip;
+        next_thread->oldtf->esp = next_thread->esp;
 
-    memmove((void*)(&next_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
+        //tfaddrs = (uint)next_thread->oldtf; //do we need it??
 
-    next_thread->oldtf->ebp = next_thread->ebp;
-    next_thread->oldtf->eip = next_thread->eip;
-    next_thread->oldtf->esp = next_thread->esp;
-
-    //tfaddrs = (uint)next_thread->oldtf; //do we need it??
-
-    memmove((void*)(tfaddrs),(void*)(&next_thread->oldtf), sizeof(struct trapframe));
-
-    printf(2,"ebp nt:  %d tid =  %d\n", next_thread->ebp, next_thread->id);      
-
-
-    next_thread->executed = 1;
+        memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
+        next_thread->executed = 1;
     }
     else{
-      uint tfaddrs = localEsp + 36;
-
+      uint tfaddrs = localEsp + 20;
+      
+     for (int i = 0; i < 40; i++)
+            printf(2,"", localEsp+(i*4), *((uint*)(localEsp+(i*4))));
+      
       memmove((void*)(current_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
       memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
       
-      current_thread = next_thread;
     }
-    next_thread->executed = 1;
-
-   current_thread = next_thread;      
+    current_thread = next_thread;   
+    next_thread = 0;
   }
   else
     next_thread = 0;
@@ -168,8 +169,8 @@ uthread_create(void (*start_func)(void *), void*arg)
     t->id = index;
     t->executed = 0;
 
-    alarm(UTHREAD_QUANTA);
-    printf(2, "ebp create: %d, id: %d\n",t->ebp, t->id);
+   alarm(UTHREAD_QUANTA);
+    //printf(2, "ebp create: %d, id: %d\n",t->ebp, t->id);
     return index;
   }
   alarm(UTHREAD_QUANTA);
@@ -212,6 +213,17 @@ void mythread(void* arg)
   current_thread->state = FREE;
 }
 
+void mythread1(void* arg)
+{
+  int i;
+  printf(1, "thread %d: running\n", uthread_self());
+  for (i = 0; i < 100; i++) {
+    printf(1, "thread %d says bye bye\n", uthread_self());
+  }
+  printf(1, "thread %d: exit\n", uthread_self());
+  current_thread->state = FREE;
+}
+
 
 int 
 main(int argc, char *argv[]) 
@@ -219,6 +231,8 @@ main(int argc, char *argv[])
   int* nothing = 0;
   uthread_init();
   uthread_create(mythread, nothing);
+  uthread_create(mythread1, nothing);
+
   sleep(5);
   /*uthread_create(mythread, nothing);
   */
