@@ -91,7 +91,7 @@ void uthread_schedule()
 
     uint tfaddrs = localEsp + 36;
 
-    memmove((void*)(next_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
+    memmove((void*)(&next_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
 
     next_thread->oldtf->ebp = next_thread->ebp;
     next_thread->oldtf->eip = next_thread->eip;
@@ -99,7 +99,7 @@ void uthread_schedule()
 
     //tfaddrs = (uint)next_thread->oldtf; //do we need it??
 
-    memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
+    memmove((void*)(tfaddrs),(void*)(&next_thread->oldtf), sizeof(struct trapframe));
 
     printf(2,"ebp nt:  %d tid =  %d\n", next_thread->ebp, next_thread->id);      
 
