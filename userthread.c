@@ -59,8 +59,8 @@ void uthread_schedule()
   if(next_thread == 0){
     for (t = all_thread; t < current_thread; t++) {
         if (t->state == RUNNABLE && t != current_thread) {
-        next_thread = t;
-        break;
+          next_thread = t;
+          break;
         }
     } 
   }
@@ -105,7 +105,7 @@ void uthread_schedule()
         next_thread->executed = 1;
     }
     else{
-      //not first time running
+      //not first time running thread
       uint tfaddrs = localEsp + 20;
       printf(2,"");   
       
@@ -136,8 +136,35 @@ int uthread_init()
 void 
 uthread_exit()
 {
-  printf(2, "exitting\n");
+  int flag;
+  thread_p t;
+  alarm(0);
   current_thread->state = FREE;
+  current_thread->sp = 0;
+  //current_thread->stack=0;       /* the thread's stack */
+  //current_thread->oldtf=0;        // Trap frame for current syscall  
+  current_thread->ebp = 0;
+  current_thread->esp =0;
+  current_thread->eip=0;
+  current_thread->state=0;             /* running, runnable, waiting */
+  current_thread->id=0;
+  current_thread->executed=0;
+  for (t = all_thread; t < all_thread + MAX_UTHREADS; t++) {
+    if (t->state == RUNNABLE && t->id != 0) {
+      flag = 1;
+      break;
+    }
+  }
+  alarm(UTHREAD_QUANTA);
+
+  if(!flag)
+    exit();
+  else{
+    int pid = getpid();
+    sigsend(pid,14);
+  }
+
+
 }
 
 
@@ -203,7 +230,7 @@ void mythread(void* arg)
 {
   int i;
   printf(1, "thread %d: running\n", uthread_self());
-  for (i = 0; i < 100; i++) {
+  for (i = 0; i < 5; i++) {
     printf(1, "thread %d says hello\n", uthread_self());
   }
   printf(1, "thread %d: exit\n", uthread_self());
@@ -214,7 +241,7 @@ void mythread1(void* arg)
 {
   int i;
   printf(1, "thread %d: running\n", uthread_self());
-  for (i = 0; i < 100; i++) {
+  for (i = 0; i < 5; i++) {
     printf(1, "thread %d says bye bye\n", uthread_self());
   }
   printf(1, "thread %d: exit\n", uthread_self());
@@ -232,13 +259,16 @@ main(int argc, char *argv[])
   sleep(5);
 
   uthread_create(mythread, nothing);
-  uthread_create(mythread1, nothing);
+  //uthread_create(mythread1, nothing);
 
     sleep(5);
 
-  uthread_create(mythread, nothing);
+  //uthread_create(mythread, nothing);
 
   sleep(5);
+    sleep(5);
+  sleep(5);
+
   /*uthread_create(mythread, nothing);
   */
   exit();
