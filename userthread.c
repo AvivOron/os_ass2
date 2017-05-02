@@ -29,6 +29,8 @@ struct thread {
   int id;
   int executed;
   int waitingFor;
+  int wentToSleepAt;
+  int ticksToSleep;
 };
 
 static thread_t all_thread[MAX_UTHREADS];
@@ -51,6 +53,11 @@ void uthread_schedule()
   if(current_thread->state == RUNNING)
     current_thread->state = RUNNABLE;
 
+  //wake up sleeping threads that need to be up
+  for(t=all_thread; t<all_thread+MAX_UTHREADS; t++){
+    if(t->state == SLEEPING && t->wentToSleepAt+t->ticksToSleep <= uptime())
+      t->state = RUNNABLE;
+  }
   /* Find another runnable thread. */
   for (t = current_thread; t < all_thread + MAX_UTHREADS; t++) {
     if (t->state == RUNNABLE && t != current_thread) {
@@ -148,11 +155,16 @@ uthread_exit()
   current_thread->eip=0;
   current_thread->state=0;             /* running, runnable, waiting */
   current_thread->executed=0;
+  current_thread->wentToSleepAt =0;
+  current_thread->ticksToSleep = 0;
   for (t = all_thread; t < all_thread + MAX_UTHREADS; t++) {
     if (t->state == RUNNABLE && t->id != 0) 
       flag = 1;
     //wake up threads waiting for me
     if (t->state == WAITING && t->waitingFor == current_thread->id)
+      t->state = RUNNABLE;
+    //wake sleeping threads up
+    if(t->state == SLEEPING && t->wentToSleepAt+t->ticksToSleep <= uptime())
       t->state = RUNNABLE;
   }
   current_thread->id=0;
@@ -220,8 +232,12 @@ int uthread_join(int tid)
 
 int uthread_sleep(int ticks)
 {
-    int i = ticks;
-    while(--i) { }
+    if(ticks < 0){
+      return -1;
+    }
+    current_thread->ticksToSleep = ticks;
+    current_thread->wentToSleepAt = uptime();
+    current_thread->state = SLEEPING;
     return 0;
 }
 
@@ -261,12 +277,13 @@ main(int argc, char *argv[])
   uthread_join(2);
   uthread_create(mythread, nothing);
   //uthread_create(mythread1, nothing);
+
+  uthread_sleep(5);
   uthread_join(3);
 
-  sleep(5);
-  sleep(5);
-  sleep(5);
-  sleep(5);
+  uthread_sleep(5);
+  uthread_sleep(5);
+  uthread_sleep(5);
 
   //uthread_create(mythread, nothing);
 
