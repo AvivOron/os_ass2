@@ -106,6 +106,15 @@ void uthread_schedule()
 
     next_thread->executed = 1;
     }
+    else{
+      uint tfaddrs = localEsp + 36;
+
+      memmove((void*)(current_thread->oldtf),(void*)(tfaddrs), sizeof(struct trapframe));
+      memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
+      
+      current_thread = next_thread;
+    }
+    next_thread->executed = 1;
 
    current_thread = next_thread;      
   }
