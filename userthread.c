@@ -43,15 +43,26 @@ void uthread_schedule()
 {
 
   thread_p t;
-  current_thread->state = RUNNABLE;
+  if(current_thread->state == RUNNING)
+  {
+    current_thread->state = RUNNABLE;
+  }
 
   /* Find another runnable thread. */
   alarm(0);
-  for (t = all_thread; t < all_thread + MAX_UTHREADS; t++) {
+  for (t = current_thread; t < all_thread + MAX_UTHREADS; t++) {
     if (t->state == RUNNABLE && t != current_thread) {
       next_thread = t;
       break;
     }
+  }
+  if(next_thread == 0){
+    for (t = all_thread; t < current_thread; t++) {
+        if (t->state == RUNNABLE && t != current_thread) {
+        next_thread = t;
+        break;
+        }
+    } 
   }
   alarm(UTHREAD_QUANTA);
 
@@ -86,9 +97,9 @@ void uthread_schedule()
     next_thread->oldtf->eip = next_thread->eip;
     next_thread->oldtf->esp = next_thread->esp;
 
-    tfaddrs = (uint)next_thread->oldtf;
+    //tfaddrs = (uint)next_thread->oldtf; //do we need it??
 
-    //memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
+    memmove((void*)(tfaddrs),(void*)(next_thread->oldtf), sizeof(struct trapframe));
 
     printf(2,"ebp nt:  %d tid =  %d\n", next_thread->ebp, next_thread->id);      
 
@@ -96,18 +107,11 @@ void uthread_schedule()
     next_thread->executed = 1;
     }
 
-    asm("movl current_thread, %eax\n\t"
-        "movl %esp, (%eax)\n\t"
-        "movl next_thread, %eax\n\t"
-        "movl %eax, current_thread\n\t"
-        "movl $0, next_thread\n\t"
-        "movl current_thread, %eax\n\t"
-        "movl (%eax), %esp\n\t");        
+   current_thread = next_thread;      
   }
   else
     next_thread = 0;
-  
-  signal(14, uthread_schedule);
+
   alarm(UTHREAD_QUANTA);
 
 }
@@ -155,7 +159,6 @@ uthread_create(void (*start_func)(void *), void*arg)
     t->id = index;
     t->executed = 0;
 
-    all_thread[index] = *t;
     alarm(UTHREAD_QUANTA);
     printf(2, "ebp create: %d, id: %d\n",t->ebp, t->id);
     return index;
