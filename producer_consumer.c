@@ -67,7 +67,7 @@ void mythread1(void* arg)
   for (i = 0; i < 20; i++) {
     printf(1, "thread %d says bye bye\n", uthread_self());
   }
-
+  bsem_up(0);
   printf(1, "thread %d: exit\n", uthread_self());
   uthread_exit();
     

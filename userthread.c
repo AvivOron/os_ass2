@@ -168,7 +168,7 @@ uthread_exit()
       t->state = RUNNABLE;
     }
     //wake sleeping threads up
-    if(t->state == SLEEPING && t->wentToSleepAt+t->ticksToSleep <= uptime())
+    if(t->state == SLEEPING && t->ticksToSleep != -1 && t->wentToSleepAt+t->ticksToSleep <= uptime())
       t->state = RUNNABLE;
   }
   current_thread->id=0;

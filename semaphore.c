@@ -40,6 +40,7 @@ void bsem_down(int bidx){
 			printf(2,"thead %d couldnt lock %d\n", uthread_self(), bidx);
 			current_thread->bidx = bidx;
 			uthread_sleep(-1);
+                        printf(2, "thread %d passed sleep(-1);", uthread_self());
 		}
 		alarm(0);
 		if(b->state == ALLOCATED){
