@@ -49,7 +49,7 @@ void uthread_schedule()
                     t->state = RUNNABLE;
                 }
             }
-        }
+        }   
     }
     /* Find another runnable thread. */
     for (t = current_thread; t < all_thread + MAX_UTHREADS; t++) {
