@@ -43,6 +43,11 @@ int uthread_self()
     return current_thread->id;
 }
 
+int uthread_state()
+{
+    return current_thread->state;
+}
+
 
 void uthread_schedule()
 {
@@ -167,8 +172,7 @@ void
 uthread_exit()
 {
   alarm(0);
-  printf(2, "thread %d exitting\n", uthread_self());
-  int flag;
+  int flag = 0;
   thread_p t;
 
   current_thread->state = FREE;
@@ -183,12 +187,11 @@ uthread_exit()
   current_thread->wentToSleepAt =0;
   current_thread->ticksToSleep = 0;
   for (t = all_thread; t < all_thread + MAX_UTHREADS; t++) {
-    if (t->state == RUNNABLE && t->id != 0) 
+    if (t->state != FREE) 
       flag = 1;
     //wake up threads waiting for me
     if (t->state == WAITING && t->waitingFor == current_thread->id)
     {
-      printf(2, "thread %d is no longer waiting for thread %d\n", t->id, current_thread->id);    
       t->state = RUNNABLE;
     }
     //wake sleeping threads up
@@ -201,7 +204,6 @@ uthread_exit()
 
   if(!flag)
   {
-    printf(2, "im the last one!\n");
     exit();  
   }
   else{
@@ -250,11 +252,10 @@ uthread_create(void (*start_func)(void *), void*arg)
 int uthread_join(int tid)
 {
   alarm(0);
-  thread_p t;
   if(tid >= 0 && tid < MAX_UTHREADS && all_thread[tid].state != FREE){
-    printf(2,"thread %d is waiting for thread %d\n",uthread_self(),tid);
-    t->waitingFor = tid;
-    t->state = WAITING;
+    //printf(2,"thread %d is waiting for thread %d\n",uthread_self(),tid);
+    current_thread->waitingFor = tid;
+    current_thread->state = WAITING;
   }
   else 
     return -1;
@@ -271,7 +272,7 @@ int uthread_sleep(int ticks)
     if(ticks < 0){
       return -1;
     }
-    printf(2,"thread %d is falling asleep\n",uthread_self());
+    //printf(2,"thread %d is falling asleep\n",uthread_self());
     current_thread->ticksToSleep = ticks;
     current_thread->wentToSleepAt = uptime();
     current_thread->state = SLEEPING;
@@ -289,7 +290,7 @@ void mythread(void* arg)
   printf(1, "thread %d: running\n", uthread_self());
   for (i = 0; i < 20; i++) {
       if(i==10){
-       uthread_sleep(500); 
+       uthread_sleep(250); 
        printf(2,"thread %d woke up\n",uthread_self());
       }
     printf(1, "thread %d says hello\n", uthread_self());
@@ -317,15 +318,37 @@ main(int argc, char *argv[])
 {
   int* nothing = 0;
   uthread_init();
-  //uthread_create(mythread_sleep, nothing);
-  uthread_create(mythread, nothing);
-  uthread_create(mythread1, nothing);
-  //uthread_create(mythread1, nothing);
-  //uthread_create(mythread1, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+    uthread_create(mythread, nothing);
+
+
 
   uthread_join(1);
-  //uthread_join(2);
-  //uthread_join(3);
+  uthread_join(2);
+  uthread_join(3);
+  uthread_join(4);
+  uthread_join(5);
+  uthread_join(6);
+  uthread_join(7);
+  uthread_join(8);
+  uthread_join(9);
+  uthread_join(10);  
+  
+  int i;
+  printf(1, "thread %d: running\n", uthread_self());
+  for (i = 0; i < 20; i++) {
+    printf(1, "thread %d says im the master of the uni\n", uthread_self());
+  }
+  printf(1, "thread %d: exit\n", uthread_self());
   
   uthread_exit();
 
