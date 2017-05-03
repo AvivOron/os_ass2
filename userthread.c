@@ -45,7 +45,7 @@ void uthread_schedule()
                 }
                 else
                 {
-                    printf(2, "waking up thread %d\n", t->id);
+                    //printf(2, "waking up thread %d\n", t->id);
                     t->state = RUNNABLE;
                 }
             }
@@ -76,14 +76,14 @@ void uthread_schedule()
   
     if(next_thread != 0)
     {
-     printf(2, "thread %d chosen with state %d and ticksToSleep %d\n", next_thread->id, next_thread->state, next_thread->ticksToSleep);
+     //printf(2, "thread %d chosen with state %d and ticksToSleep %d\n", next_thread->id, next_thread->state, next_thread->ticksToSleep);
      break;   
     }
   
   }
 
   if (next_thread == 0) {
-    printf(2, "thread_schedule: no runnable threads; deadlock\n");
+    //printf(2, "thread_schedule: no runnable threads; deadlock\n");
     exit();
   }
   
@@ -245,7 +245,7 @@ int uthread_sleep(int ticks)
     if(ticks < -1){
       return -1;
     }
-    printf(2,"thread %d is falling asleep\n",uthread_self());
+    //printf(2,"thread %d is falling asleep\n",uthread_self());
     current_thread->ticksToSleep = ticks;
     current_thread->wentToSleepAt = uptime();
     current_thread->state = SLEEPING;

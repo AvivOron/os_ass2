@@ -173,11 +173,9 @@ UPROGS=\
 	_sh\
 	_stressfs\
 	_usertests\
-	_ourtests\
 	_wc\
 	_zombie\
 	_producer_consumer\
-	_ex1basicTest\
 
 
 fs.img: mkfs README $(UPROGS)
