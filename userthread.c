@@ -1,42 +1,7 @@
-#include "types.h"
-#include "stat.h"
-#include "user.h"
-#include "x86.h"
 
-/* Possible states of a thread; */
-#define FREE        0x0
-#define RUNNING     0x1
-#define RUNNABLE    0x2
-#define WAITING    0x3
-#define SLEEPING    0x4
+#include "userthread.h"
 
-#define STACK_SIZE  4096
-#define MAX_UTHREADS 64
-#define UTHREAD_QUANTA 5
-
-typedef struct thread thread_t, *thread_p;
-typedef struct trapframe *tf; 
-uint localEbp;
-
-struct thread {
-  int  sp;                /* curent stack pointer */
-  char stack[STACK_SIZE];       /* the thread's stack */
-  struct trapframe oldtf;        // Trap frame for current syscall  
-  uint ebp;
-  uint esp;
-  uint eip;
-  int  state;             /* running, runnable, waiting */
-  int id;
-  int executed;
-  int waitingFor;
-  int wentToSleepAt;
-  int ticksToSleep;
-};
-
-static thread_t all_thread[MAX_UTHREADS];
-static thread_p  current_thread;
 static thread_p  next_thread;
- 
 
 int uthread_self()
 {
@@ -66,9 +31,9 @@ void uthread_schedule()
     
     //wake up sleeping threads that need to be up
     for(t=all_thread; t<all_thread+MAX_UTHREADS; t++){
-        if(t->state == SLEEPING)
+        if(t->state == SLEEPING && t->ticksToSleep!= -1)
         {
-            if(t->wentToSleepAt+t->ticksToSleep > uptime())
+            if(t->wentToSleepAt + t->ticksToSleep > uptime())
             {
                 sleepingThreads = 1;   
             }
@@ -269,7 +234,7 @@ int uthread_join(int tid)
 int uthread_sleep(int ticks)
 {
     alarm(0);
-    if(ticks < 0){
+    if(ticks < -1){
       return -1;
     }
     //printf(2,"thread %d is falling asleep\n",uthread_self());
@@ -351,24 +316,6 @@ main(int argc, char *argv[])
   printf(1, "thread %d: exit\n", uthread_self());
   
   uthread_exit();
-
-
-
- /* uthread_join(2);
-  uthread_create(mythread, nothing);
-  //uthread_create(mythread1, nothing);
-
-  uthread_sleep(5);
-  uthread_join(3);
-
-  uthread_sleep(5);
-  uthread_sleep(5);
-  uthread_sleep(5);
-*/
-  //uthread_create(mythread, nothing);
-
-  /*uthread_create(mythread, nothing);
-  */
   
   return 1;
 }
