@@ -3,6 +3,7 @@
 
 static thread_p  next_thread;
 
+
 int uthread_self()
 {
     return current_thread->id;
@@ -16,10 +17,10 @@ int uthread_state()
 
 void uthread_schedule()
 {
+  alarm(0);
   int sleepingThreads = 0;
   int init = 1;
   thread_p t;
-  alarm(0);
   
   if(current_thread->state == RUNNING)
     current_thread->state = RUNNABLE;
@@ -31,15 +32,22 @@ void uthread_schedule()
     
     //wake up sleeping threads that need to be up
     for(t=all_thread; t<all_thread+MAX_UTHREADS; t++){
-        if(t->state == SLEEPING && t->ticksToSleep!= -1)
-        {
-            if(t->wentToSleepAt + t->ticksToSleep > uptime())
+        if(t->state == SLEEPING) {
+            if(t->ticksToSleep == -1)
             {
-                sleepingThreads = 1;   
+                sleepingThreads = 1;  
             }
             else
             {
-                t->state = RUNNABLE;
+                if(t->wentToSleepAt + t->ticksToSleep > uptime())
+                {
+                    sleepingThreads = 1;   
+                }
+                else
+                {
+                    printf(2, "waking up thread %d\n", t->id);
+                    t->state = RUNNABLE;
+                }
             }
         }
     }
@@ -68,7 +76,7 @@ void uthread_schedule()
   
     if(next_thread != 0)
     {
-     printf(2, "thread %d chosen\n", next_thread->id);
+     printf(2, "thread %d chosen with state %d and ticksToSleep %d\n", next_thread->id, next_thread->state, next_thread->ticksToSleep);
      break;   
     }
   
@@ -237,7 +245,7 @@ int uthread_sleep(int ticks)
     if(ticks < -1){
       return -1;
     }
-    //printf(2,"thread %d is falling asleep\n",uthread_self());
+    printf(2,"thread %d is falling asleep\n",uthread_self());
     current_thread->ticksToSleep = ticks;
     current_thread->wentToSleepAt = uptime();
     current_thread->state = SLEEPING;
@@ -248,7 +256,7 @@ int uthread_sleep(int ticks)
     return 0;
 }
 
-
+/*
 void mythread(void* arg)
 {
   int i;
@@ -276,8 +284,8 @@ void mythread1(void* arg)
   uthread_exit();
     
 }
-
-
+*/
+/*
 int 
 main(int argc, char *argv[]) 
 {
@@ -318,4 +326,4 @@ main(int argc, char *argv[])
   uthread_exit();
   
   return 1;
-}
+}*/

@@ -34,8 +34,8 @@ struct thread {
   int bidx;
 };
 
-static thread_t all_thread[MAX_UTHREADS];
-static thread_p  current_thread;
+ thread_t all_thread[MAX_UTHREADS];
+ thread_p  current_thread;
 
 int uthread_sleep(int ticks);
 int uthread_join(int tid);
